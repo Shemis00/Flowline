@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTheme } from "../hooks/useTheme";
 
 export type View = "dashboard" | "kanban" | "list" | "assignee";
 
@@ -62,6 +63,23 @@ function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" />
+    </svg>
+  );
+}
+
 export const VIEWS: { id: View; label: string; icon: ReactNode }[] = [
   { id: "dashboard", label: "Dashboard", icon: <DashboardIcon /> },
   { id: "kanban", label: "Kanban", icon: <KanbanIcon /> },
@@ -79,6 +97,7 @@ interface Props {
  * width matters more); the choice is remembered across reloads.
  */
 export function Sidebar({ view, onViewChange }: Props) {
+  const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem(COLLAPSE_STORAGE_KEY);
     if (saved !== null) return saved === "true";
@@ -91,6 +110,9 @@ export function Sidebar({ view, onViewChange }: Props) {
       return !prev;
     });
   };
+
+  const themeLabel = theme === "dark" ? "Light mode" : "Dark mode";
+  const ThemeIcon = theme === "dark" ? SunIcon : MoonIcon;
 
   return (
     <aside
@@ -133,6 +155,23 @@ export function Sidebar({ view, onViewChange }: Props) {
           </button>
         ))}
       </nav>
+
+      <div className="mt-auto pt-2">
+        <div className="h-px bg-line mb-2" />
+        <button
+          data-tour="theme-toggle"
+          className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-dim hover:text-ink hover:bg-surface2 cursor-pointer transition-colors w-full ${
+            collapsed ? "justify-center" : ""
+          }`}
+          title={themeLabel}
+          aria-label={themeLabel}
+          aria-pressed={theme === "light"}
+          onClick={toggleTheme}
+        >
+          <ThemeIcon />
+          {!collapsed && <span className="whitespace-nowrap">{themeLabel}</span>}
+        </button>
+      </div>
     </aside>
   );
 }

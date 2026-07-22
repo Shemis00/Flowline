@@ -70,7 +70,7 @@ export function CardItem({ card, assignee, onOpen, onDelete }: Props) {
       ref={setNodeRef}
       style={style}
       data-tour="card"
-      className={`${CARD_BASE} group border-line cursor-grab hover:border-[#3a4152] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2`}
+      className={`${CARD_BASE} group border-line cursor-grab hover:border-[var(--color-line-hover)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2`}
       {...attributes}
       {...listeners}
       onClick={() => onOpen(card.id)}

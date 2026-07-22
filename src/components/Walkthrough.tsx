@@ -22,6 +22,11 @@ const STEPS: Step[] = [
     target: ['[data-tour="sidebar"]'],
   },
   {
+    title: "Light & dark themes",
+    body: "Prefer a brighter board? Tap this control at the bottom of the sidebar to switch between light and dark. Your choice sticks across reloads.",
+    target: ['[data-tour="theme-toggle"]'],
+  },
+  {
     title: "Dashboard",
     body: "Headline numbers at a glance — overdue turns red when something slips. Below: tasks per column, each member's workload, and the next deadlines (click one to open that task).",
     view: "dashboard",
@@ -156,7 +161,7 @@ export function Walkthrough({ open, onClose, onViewChange }: Props) {
             left: rect.left - SPOT_PAD,
             width: rect.width + SPOT_PAD * 2,
             height: rect.height + SPOT_PAD * 2,
-            boxShadow: "0 0 0 9999px rgb(5 7 12 / 0.62)",
+            boxShadow: "0 0 0 9999px var(--tour-dim)",
           }}
         />
       ) : (
