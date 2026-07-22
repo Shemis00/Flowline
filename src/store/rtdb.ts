@@ -134,6 +134,18 @@ export class RtdbStore implements BoardStore {
     await set(push(ref(this.db, `${BOARD_PATH}/columns`)), node);
   }
 
+  async moveColumn(columnId: string, order: number): Promise<void> {
+    await update(ref(this.db, `${BOARD_PATH}/columns/${columnId}`), { order });
+  }
+
+  async rebalanceColumns(entries: { columnId: string; order: number }[]): Promise<void> {
+    const updates: Record<string, number> = {};
+    for (const { columnId, order } of entries) {
+      updates[`${BOARD_PATH}/columns/${columnId}/order`] = order;
+    }
+    await update(ref(this.db), updates);
+  }
+
   async deleteColumn(columnId: string): Promise<void> {
     await remove(ref(this.db, `${BOARD_PATH}/columns/${columnId}`));
   }

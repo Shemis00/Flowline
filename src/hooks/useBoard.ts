@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { BoardState, Card } from "../types";
+import type { BoardState } from "../types";
 import type { BoardStore } from "../store";
 
 /**
- * Subscribes to the store and exposes the card list as mutable local state so
+ * Subscribes to the store and exposes board state as mutable local state so
  * drag interactions can reorder optimistically. While a drag is in progress,
  * incoming snapshots (e.g. from another tab) are buffered and applied after
- * the drop, so remote updates never yank the card out from under the pointer.
+ * the drop, so remote updates never yank items out from under the pointer.
  */
 export function useBoard(store: BoardStore) {
   const [state, setState] = useState<BoardState>({
@@ -33,16 +33,16 @@ export function useBoard(store: BoardStore) {
   }, []);
 
   /**
-   * Ends the drag. `mutate` receives the freshest card list (buffered remote
+   * Ends the drag. `mutate` receives the freshest board (buffered remote
    * snapshot if one arrived mid-drag, otherwise current local state) and
-   * returns the list to render while the persistence write is in flight.
+   * returns the state to render while the persistence write is in flight.
    */
-  const endDrag = useCallback((mutate?: (cards: Card[]) => Card[]) => {
+  const endDrag = useCallback((mutate?: (base: BoardState) => BoardState) => {
     draggingRef.current = false;
     setState((current) => {
       const base = pendingRef.current ?? current;
       pendingRef.current = null;
-      return mutate ? { ...base, cards: mutate(base.cards) } : base;
+      return mutate ? mutate(base) : base;
     });
   }, []);
 

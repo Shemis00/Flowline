@@ -18,6 +18,10 @@ export interface BoardStore {
   rebalanceColumn(entries: { cardId: string; order: number }[]): Promise<void>;
 
   addColumn(title: string, order: number): Promise<void>;
+  /** Move a column with a new fractional order key (single-node write). */
+  moveColumn(columnId: string, order: number): Promise<void>;
+  /** Rewrite order keys for all columns (used when fractional keys collide). */
+  rebalanceColumns(entries: { columnId: string; order: number }[]): Promise<void>;
   /** Callers must ensure the column is empty first. */
   deleteColumn(columnId: string): Promise<void>;
 

@@ -34,7 +34,7 @@ const STEPS: Step[] = [
   },
   {
     title: "Kanban board",
-    body: "Drag cards to reorder within a column or move them across columns — every drop is saved instantly and syncs to all open tabs. On touch screens, press and hold a card to lift it.",
+    body: "Drag cards to reorder within a column or move them across columns — every drop is saved instantly and syncs to all open tabs. Drag a column header to rearrange stages. On touch screens, press and hold to lift.",
     view: "kanban",
     target: ['[data-tour="column"]'],
   },
