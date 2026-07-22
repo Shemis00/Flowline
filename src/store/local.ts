@@ -129,6 +129,22 @@ export class LocalStore implements BoardStore {
     this.persist();
   }
 
+  async moveColumn(columnId: string, order: number): Promise<void> {
+    const column = this.data.columns.find((c) => c.id === columnId);
+    if (column) {
+      column.order = order;
+      this.persist();
+    }
+  }
+
+  async rebalanceColumns(entries: { columnId: string; order: number }[]): Promise<void> {
+    for (const { columnId, order } of entries) {
+      const column = this.data.columns.find((c) => c.id === columnId);
+      if (column) column.order = order;
+    }
+    this.persist();
+  }
+
   async deleteColumn(columnId: string): Promise<void> {
     this.data.columns = this.data.columns.filter((c) => c.id !== columnId);
     this.persist();

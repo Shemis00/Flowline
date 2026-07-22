@@ -15,21 +15,35 @@ import {
   type DragOverEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import type { Card, Column as ColumnType, Member } from "../../types";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import type { BoardState, Card, Column as ColumnType, Member } from "../../types";
 import type { BoardStore } from "../../store";
 import { byOrder } from "../../lib/board";
 import { orderBetween, needsRebalance, rebalancedOrders, ORDER_GAP } from "../../lib/order";
-import { Column } from "./Column";
+import { Column, ColumnGhost } from "./Column";
 import { CardGhost } from "./CardItem";
 import { Composer } from "../ui/Composer";
 
 type Lists = Record<string, string[]>;
 
-/** Prefer whatever is directly under the pointer; fall back to rectangle overlap. */
+/** Prefer whatever is directly under the pointer; fall back to rectangle overlap.
+ *  Column drags only collide with other columns so cards don't steal the drop. */
 const collisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
-  return pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
+  const collisions = pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
+
+  if (args.active.data.current?.type === "column") {
+    return collisions.filter((collision) => {
+      const container = args.droppableContainers.find((c) => c.id === collision.id);
+      return container?.data.current?.type === "column";
+    });
+  }
+  return collisions;
 };
 
 const findColumnOf = (cardId: string, lists: Lists): string | undefined =>
@@ -43,7 +57,7 @@ interface Props {
   cardsById: Map<string, Card>;
   membersById: Map<string, Member>;
   beginDrag: () => void;
-  endDrag: (mutate?: (cards: Card[]) => Card[]) => void;
+  endDrag: (mutate?: (base: BoardState) => BoardState) => void;
   onOpenCard: (cardId: string) => void;
 }
 
@@ -59,12 +73,16 @@ export function KanbanView({
   onOpenCard,
 }: Props) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [activeColumn, setActiveColumn] = useState<ColumnType | null>(null);
   // While dragging, column contents render from this id-list preview so
   // cross-column moves animate without touching persisted order keys.
   // A ref mirrors the state because dnd-kit fires drag events faster than
   // React commits, and drop handling must see the latest preview.
   const [preview, setPreview] = useState<Lists | null>(null);
   const previewRef = useRef<Lists | null>(null);
+  // Same pattern for horizontal column order while a column is dragged.
+  const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
+  const columnOrderRef = useRef<string[] | null>(null);
   // A click event fires on the card right after a drop; this suppresses it
   // so finishing a drag doesn't accidentally open the card editor.
   const lastDragEndRef = useRef(0);
@@ -72,6 +90,11 @@ export function KanbanView({
   const updatePreview = (value: Lists | null) => {
     previewRef.current = value;
     setPreview(value);
+  };
+
+  const updateColumnOrder = (value: string[] | null) => {
+    columnOrderRef.current = value;
+    setColumnOrder(value);
   };
 
   const listsFromState = useMemo(() => {
@@ -85,6 +108,19 @@ export function KanbanView({
 
   const lists = preview ?? listsFromState;
 
+  const columnsById = useMemo(() => {
+    const map = new Map<string, ColumnType>();
+    for (const col of columns) map.set(col.id, col);
+    return map;
+  }, [columns]);
+
+  const orderedColumns = useMemo(() => {
+    if (!columnOrder) return columns;
+    return columnOrder
+      .map((id) => columnsById.get(id))
+      .filter((c): c is ColumnType => c !== undefined);
+  }, [columnOrder, columns, columnsById]);
+
   const sensors = useSensors(
     // Small activation distance so plain clicks (open editor, delete) don't start a drag.
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -94,6 +130,15 @@ export function KanbanView({
   );
 
   const handleDragStart = ({ active }: DragStartEvent) => {
+    if (active.data.current?.type === "column") {
+      const column = columnsById.get(String(active.id));
+      if (!column) return;
+      setActiveColumn(column);
+      updateColumnOrder(columns.map((c) => c.id));
+      beginDrag();
+      return;
+    }
+
     const card = cardsById.get(String(active.id));
     if (!card) return;
     setActiveCard(card);
@@ -102,37 +147,101 @@ export function KanbanView({
   };
 
   const handleDragOver = ({ active, over }: DragOverEvent) => {
+    if (!over) return;
+
+    if (active.data.current?.type === "column") {
+      if (over.data.current?.type !== "column") return;
+      const current = columnOrderRef.current;
+      if (!current) return;
+      const activeId = String(active.id);
+      const overId = String(over.id);
+      if (activeId === overId) return;
+      const oldIndex = current.indexOf(activeId);
+      const newIndex = current.indexOf(overId);
+      if (oldIndex === -1 || newIndex === -1) return;
+      updateColumnOrder(arrayMove(current, oldIndex, newIndex));
+      return;
+    }
+
     const current = previewRef.current;
-    if (!over || !current) return;
+    if (!current) return;
     const activeId = String(active.id);
     const overId = String(over.id);
     if (activeId === overId) return;
 
-    const activeColumn = findColumnOf(activeId, current);
-    const overColumn =
+    const activeColumnId = findColumnOf(activeId, current);
+    const overColumnId =
       over.data.current?.type === "column" ? overId : findColumnOf(overId, current);
     // Within-column hover animation is handled by the sortable context; only
     // cross-column moves need the preview lists updated.
-    if (!activeColumn || !overColumn || activeColumn === overColumn) return;
+    if (!activeColumnId || !overColumnId || activeColumnId === overColumnId) return;
 
     const next: Lists = {
       ...current,
-      [activeColumn]: current[activeColumn].filter((id) => id !== activeId),
-      [overColumn]: [...current[overColumn]],
+      [activeColumnId]: current[activeColumnId].filter((id) => id !== activeId),
+      [overColumnId]: [...current[overColumnId]],
     };
 
-    let insertIndex = next[overColumn].length;
-    const overIndex = next[overColumn].indexOf(overId);
+    let insertIndex = next[overColumnId].length;
+    const overIndex = next[overColumnId].indexOf(overId);
     if (overIndex !== -1) {
       const activeRect = active.rect.current.translated;
       const isBelow = activeRect ? activeRect.top > over.rect.top + over.rect.height / 2 : false;
       insertIndex = overIndex + (isBelow ? 1 : 0);
     }
-    next[overColumn].splice(insertIndex, 0, activeId);
+    next[overColumnId].splice(insertIndex, 0, activeId);
     updatePreview(next);
   };
 
+  const finishColumnDrag = (activeId: string) => {
+    const order = columnOrderRef.current;
+    setActiveColumn(null);
+    updateColumnOrder(null);
+    lastDragEndRef.current = Date.now();
+
+    if (!order) {
+      endDrag();
+      return;
+    }
+
+    const index = order.indexOf(activeId);
+    if (index === -1) {
+      endDrag();
+      return;
+    }
+
+    const before = index > 0 ? columnsById.get(order[index - 1]) : undefined;
+    const after = index < order.length - 1 ? columnsById.get(order[index + 1]) : undefined;
+    let newOrder = orderBetween(before?.order, after?.order);
+
+    if (needsRebalance(newOrder, before?.order, after?.order)) {
+      const orders = rebalancedOrders(order.length);
+      newOrder = orders[index];
+      const entries = order.map((columnId, i) => ({ columnId, order: orders[i] }));
+      void store.moveColumn(activeId, newOrder).then(() => store.rebalanceColumns(entries));
+      endDrag((base) => ({
+        ...base,
+        columns: base.columns.map((c) => {
+          const entry = entries.find((e) => e.columnId === c.id);
+          return entry ? { ...c, order: entry.order } : c;
+        }),
+      }));
+      return;
+    }
+
+    void store.moveColumn(activeId, newOrder);
+    endDrag((base) => ({
+      ...base,
+      columns: base.columns.map((c) => (c.id === activeId ? { ...c, order: newOrder } : c)),
+    }));
+  };
+
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (active.data.current?.type === "column") {
+      finishColumnDrag(String(active.id));
+      return;
+    }
+
     const activeId = String(active.id);
     const snapshot = previewRef.current;
     setActiveCard(null);
@@ -190,27 +299,31 @@ export function KanbanView({
       void store
         .moveCard(activeId, targetColumn, newOrder)
         .then(() => store.rebalanceColumn(entries));
-      endDrag((current) =>
-        current.map((c) => {
+      endDrag((base) => ({
+        ...base,
+        cards: base.cards.map((c) => {
           const entry = entries.find((e) => e.cardId === c.id);
           const order = entry ? entry.order : c.order;
           return c.id === activeId ? { ...c, columnId: targetColumn, order } : { ...c, order };
         }),
-      );
+      }));
       return;
     }
 
     void store.moveCard(activeId, targetColumn, newOrder);
-    endDrag((current) =>
-      current.map((c) =>
+    endDrag((base) => ({
+      ...base,
+      cards: base.cards.map((c) =>
         c.id === activeId ? { ...c, columnId: targetColumn, order: newOrder } : c,
       ),
-    );
+    }));
   };
 
   const handleDragCancel = () => {
     setActiveCard(null);
+    setActiveColumn(null);
     updatePreview(null);
+    updateColumnOrder(null);
     lastDragEndRef.current = Date.now();
     endDrag();
   };
@@ -244,20 +357,25 @@ export function KanbanView({
       onDragCancel={handleDragCancel}
     >
       <div className="flex gap-3 sm:gap-4 h-full p-3 sm:p-5 overflow-x-auto items-start">
-        {columns.map((column) => (
-          <Column
-            key={column.id}
-            column={column}
-            cards={(lists[column.id] ?? [])
-              .map((id) => cardsById.get(id))
-              .filter((c): c is Card => c !== undefined)}
-            membersById={membersById}
-            onAddCard={(columnId, title) => void store.addCard(columnId, title)}
-            onDeleteCard={(id) => void store.deleteCard(id)}
-            onOpenCard={openCard}
-            onDeleteColumn={deleteColumn}
-          />
-        ))}
+        <SortableContext
+          items={orderedColumns.map((c) => c.id)}
+          strategy={horizontalListSortingStrategy}
+        >
+          {orderedColumns.map((column) => (
+            <Column
+              key={column.id}
+              column={column}
+              cards={(lists[column.id] ?? [])
+                .map((id) => cardsById.get(id))
+                .filter((c): c is Card => c !== undefined)}
+              membersById={membersById}
+              onAddCard={(columnId, title) => void store.addCard(columnId, title)}
+              onDeleteCard={(id) => void store.deleteCard(id)}
+              onOpenCard={openCard}
+              onDeleteColumn={deleteColumn}
+            />
+          ))}
+        </SortableContext>
         <div data-tour="add-column" className="shrink-0">
           <Composer
             triggerLabel="+ Add column"
@@ -271,7 +389,12 @@ export function KanbanView({
         </div>
       </div>
       <DragOverlay>
-        {activeCard ? (
+        {activeColumn ? (
+          <ColumnGhost
+            column={activeColumn}
+            cardCount={(lists[activeColumn.id] ?? []).length}
+          />
+        ) : activeCard ? (
           <CardGhost
             card={activeCard}
             assignee={activeCard.assigneeId ? membersById.get(activeCard.assigneeId) : undefined}
