@@ -145,6 +145,16 @@ export function Walkthrough({ open, onClose, onViewChange }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, index, onClose]);
 
+  // Freeze the page behind the tour so the board can't be scrolled or clicked.
+  useEffect(() => {
+    if (!open) return;
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const step = STEPS[index];
@@ -152,6 +162,13 @@ export function Walkthrough({ open, onClose, onViewChange }: Props) {
 
   return (
     <>
+      {/* Full-screen shield: catches clicks/touches so the board stays inert. */}
+      <div
+        className="fixed inset-0 z-40 touch-none"
+        aria-hidden
+        onPointerDown={(e) => e.preventDefault()}
+      />
+
       {/* Spotlight: highlighted ring + page dim via a huge box-shadow cutout. */}
       {rect ? (
         <div
@@ -172,6 +189,9 @@ export function Walkthrough({ open, onClose, onViewChange }: Props) {
           page — earlier we queried `footer`, which matched kanban column footers
           and yanked the card to the top on those steps. */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={step.title}
         className="fixed z-50 bottom-14 sm:bottom-16 left-3 right-3 sm:left-auto sm:right-4 sm:w-[370px] rounded-2xl p-[1.5px] bg-gradient-to-br from-accent via-accent2 to-teal shadow-[0_8px_40px_rgb(91_141_239/0.35)]"
       >
         <div className="bg-surface rounded-[15px] p-3 sm:p-4 flex flex-col gap-2.5 sm:gap-3 max-h-[60vh] overflow-y-auto">
