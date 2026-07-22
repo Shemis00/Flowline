@@ -12,6 +12,7 @@ import { AssigneeView } from "./views/AssigneeView";
 import { DashboardView } from "./views/DashboardView";
 import { CardModal } from "./CardModal";
 import { MembersDialog } from "./MembersDialog";
+import { BoardSkeleton } from "./ui/BoardSkeleton";
 
 const VIEW_STORAGE_KEY = "kanban-view";
 const TOUR_SEEN_KEY = "kanban-tour-seen";
@@ -67,7 +68,7 @@ export function Board({ store }: { store: BoardStore }) {
 
   const renderView = () => {
     if (!state.loaded) {
-      return <div className="grid place-items-center h-full text-dim">Loading board…</div>;
+      return <BoardSkeleton view={view} />;
     }
     switch (view) {
       case "dashboard":

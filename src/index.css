@@ -88,4 +88,25 @@
   .field-input {
     @apply w-full text-sm text-ink bg-surface3 border border-line rounded-lg px-2.5 py-2 outline-none focus:border-accent resize-y;
   }
+
+  /* Shimmer placeholder used while the board store hydrates. */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface2) 0%,
+      var(--color-surface3) 45%,
+      var(--color-surface2) 90%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
