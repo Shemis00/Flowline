@@ -6,21 +6,29 @@ export type { BoardStore } from "./types";
 
 export type BackendKind = "firebase" | "local";
 
+/** Subset of Vite env keys used to enable the Firebase backend. */
+export type FirebaseEnv = {
+  VITE_FIREBASE_API_KEY?: string;
+  VITE_FIREBASE_PROJECT_ID?: string;
+  VITE_FIREBASE_DATABASE_URL?: string;
+  VITE_FIREBASE_AUTH_DOMAIN?: string;
+  VITE_FIREBASE_APP_ID?: string;
+};
+
 /** Reads Vite env vars; returns null when Firebase is not configured. */
 export function resolveFirebaseConfig(
-  env: ImportMetaEnv = import.meta.env,
+  env: FirebaseEnv = import.meta.env,
 ): Record<string, string> | null {
-  const projectId = env.VITE_FIREBASE_PROJECT_ID as string | undefined;
-  const apiKey = env.VITE_FIREBASE_API_KEY as string | undefined;
+  const projectId = env.VITE_FIREBASE_PROJECT_ID;
+  const apiKey = env.VITE_FIREBASE_API_KEY;
   if (!projectId || !apiKey) return null;
   return {
     apiKey,
     projectId,
     databaseURL:
-      (env.VITE_FIREBASE_DATABASE_URL as string) ??
-      `https://${projectId}-default-rtdb.firebaseio.com`,
-    authDomain: (env.VITE_FIREBASE_AUTH_DOMAIN as string) ?? `${projectId}.firebaseapp.com`,
-    appId: (env.VITE_FIREBASE_APP_ID as string) ?? "",
+      env.VITE_FIREBASE_DATABASE_URL ?? `https://${projectId}-default-rtdb.firebaseio.com`,
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? `${projectId}.firebaseapp.com`,
+    appId: env.VITE_FIREBASE_APP_ID ?? "",
   };
 }
 
