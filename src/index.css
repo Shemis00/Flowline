@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0f1117;
+  --color-surface: #181b23;
+  --color-surface2: #1f232e;
+  --color-surface3: #272c3a;
+  --color-line: #2e3442;
+  --color-ink: #e6e9f0;
+  --color-dim: #8b93a7;
+  --color-accent: #5b8def;
+  --color-accent-soft: rgb(91 141 239 / 0.16);
+  --color-accent2: #9d7bff;
+  --color-teal: #3ecfb2;
+  --color-amber: #f0b455;
+  --color-danger: #e5645f;
+  --color-danger-soft: rgb(229 100 95 / 0.16);
+  --color-danger-text: #ffb3b0;
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 12px 28px rgb(0 0 0 / 0.5);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+  }
+
+  /* Themed scrollbars everywhere (board, columns, lists, dialogs). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface3) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-surface3);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: #3d4658;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+  }
+}
+
+/* Shared building blocks, composed from Tailwind utilities. */
+@layer components {
+  .btn {
+    @apply text-[13px] px-3 py-1.5 rounded-lg border border-line bg-surface2 text-ink cursor-pointer hover:brightness-110;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-accent to-accent2 border-transparent text-white hover:brightness-110;
+  }
+
+  .btn-danger {
+    @apply text-danger-text border-danger/50 bg-danger/10;
+  }
+
+  .field-label {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-dim;
+  }
+
+  .field-input {
+    @apply w-full text-sm text-ink bg-surface3 border border-line rounded-lg px-2.5 py-2 outline-none focus:border-accent resize-y;
+  }
+}
