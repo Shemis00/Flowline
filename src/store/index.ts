@@ -6,8 +6,10 @@ export type { BoardStore } from "./types";
 
 export type BackendKind = "firebase" | "local";
 
-function firebaseConfig(): Record<string, string> | null {
-  const env = import.meta.env;
+/** Reads Vite env vars; returns null when Firebase is not configured. */
+export function resolveFirebaseConfig(
+  env: ImportMetaEnv = import.meta.env,
+): Record<string, string> | null {
   const projectId = env.VITE_FIREBASE_PROJECT_ID as string | undefined;
   const apiKey = env.VITE_FIREBASE_API_KEY as string | undefined;
   if (!projectId || !apiKey) return null;
@@ -23,7 +25,7 @@ function firebaseConfig(): Record<string, string> | null {
 }
 
 export function createStore(): { store: BoardStore; backend: BackendKind } {
-  const config = firebaseConfig();
+  const config = resolveFirebaseConfig();
   if (config) {
     return { store: new RtdbStore(config), backend: "firebase" };
   }
